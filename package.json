@@ -1,0 +1,52 @@
+{
+  "name": "@vstack/openchamber",
+  "version": "0.1.0",
+  "description": "vstack OpenChamber Extension — workflow dashboard panel and page for visualizing vstack workflow state",
+  "type": "module",
+  "openchamber": {
+    "apiVersion": 1,
+    "engines": {
+      "openchamber": ">=1.24.0"
+    },
+    "contributes": {
+      "panel": {
+        "id": "vstack-workflow",
+        "name": "vstack Workflow",
+        "icon": "git-branch",
+        "entry": "panel/index.html"
+      },
+      "page": {
+        "id": "vstack-workflow-dashboard",
+        "name": "vstack Dashboard",
+        "icon": "dashboard",
+        "entry": "panel/dashboard.html"
+      },
+      "capabilities": [
+        "files"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "openchamber-guest-bundle panel/main.ts panel/main.js && openchamber-guest-bundle panel/dashboard.ts panel/dashboard.js",
+    "dev": "openchamber-guest-bundle panel/main.ts panel/main.js --watch",
+    "typecheck": "tsc --noEmit",
+    "pack": "npm pack --dry-run",
+    "pack:prod": "npm pack"
+  },
+  "devDependencies": {
+    "@openchamber/sdk": "2.5.3",
+    "@types/bun": "1.4.4",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/<github-username>/vstack-openchamber.git"
+  },
+  "homepage": "https://github.com/<github-username>/vstack-openchamber#readme",
+  "bugs": {
+    "url": "https://github.com/<github-username>/vstack-openchamber/issues"
+  }
+}

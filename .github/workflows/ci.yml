@@ -1,0 +1,90 @@
+name: OpenChamber CI
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Extension
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      - name: Verify build output
+        run: |
+          if [ ! -f "panel/main.js" ] || [ ! -f "panel/dashboard.js" ]; then
+            echo "ERROR: Built JS files not found"
+            exit 1
+          fi
+
+          # Verify HTML references correct JS
+          if ! grep -q 'src="main.js"' panel/index.html; then
+            echo "ERROR: index.html does not reference main.js"
+            exit 1
+          fi
+
+          if ! grep -q 'src="dashboard.js"' panel/dashboard.html; then
+            echo "ERROR: dashboard.html does not reference dashboard.js"
+            exit 1
+          fi
+
+          echo "✅ Build output verified"
+
+      - name: Validate extension manifest
+        run: |
+          node -e "
+            const pkg = require('./package.json');
+            const oc = pkg.openchamber;
+            if (!oc || oc.apiVersion !== 1) {
+              console.error('ERROR: Invalid openchamber manifest');
+              process.exit(1);
+            }
+            if (!oc.contributes?.panel?.entry || !oc.contributes?.page?.entry) {
+              console.error('ERROR: Missing panel or page entry');
+              process.exit(1);
+            }
+            if (!oc.capabilities?.includes('files')) {
+              console.error('ERROR: Missing files capability');
+              process.exit(1);
+            }
+            console.log('✅ Extension manifest valid');
+          "
+
+      - name: Check distribution files
+        run: |
+          # Ensure no sensitive files in dist
+          if find panel -name "*.map" | grep -q .; then
+            echo "WARNING: Source maps found in panel (consider excluding)"
+          fi
+          if find panel -name "*.ts" | grep -q .; then
+            echo "ERROR: TypeScript source files found in panel"
+            exit 1
+          fi
+          echo "✅ Distribution files clean"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
