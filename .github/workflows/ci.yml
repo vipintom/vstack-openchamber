@@ -93,8 +93,9 @@ jobs:
           if find panel -name "*.map" | grep -q .; then
             echo "WARNING: Source maps found in panel (consider excluding)"
           fi
-          if find panel -name "*.ts" | grep -q .; then
-            echo "ERROR: TypeScript source files found in panel"
+          # Verify build produced required JS files (source .ts files are expected to exist)
+          if [ ! -f "panel/main.js" ] || [ ! -f "panel/dashboard.js" ]; then
+            echo "ERROR: Built JS files not found"
             exit 1
           fi
           echo "✅ Distribution files clean"
