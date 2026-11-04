@@ -69,19 +69,8 @@ jobs:
         run: |
           node -e "
             const fs = require('fs');
-            console.log('CWD:', process.cwd());
-            console.log('Files:', fs.readdirSync('.'));
-            const raw = fs.readFileSync('./package.json', 'utf8');
-            console.log('Raw length:', raw.length);
-            const pkg = JSON.parse(raw);
-            console.log('pkg.openchamber:', JSON.stringify(pkg.openchamber, null, 2));
+            const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
             const oc = pkg.openchamber;
-            console.log('oc:', JSON.stringify(oc, null, 2));
-            console.log('oc type:', typeof oc);
-            console.log('oc keys:', Object.keys(oc || {}));
-            console.log('oc.capabilities:', oc.capabilities);
-            console.log('oc.capabilities type:', typeof oc.capabilities);
-            console.log('Array.isArray(oc.capabilities):', Array.isArray(oc.capabilities));
             if (!oc || oc.apiVersion !== 1) {
               console.error('ERROR: Invalid openchamber manifest');
               process.exit(1);
@@ -90,9 +79,9 @@ jobs:
               console.error('ERROR: Missing panel or page entry');
               process.exit(1);
             }
-            if (!oc.capabilities?.includes('files')) {
+            if (!oc.contributes?.capabilities?.includes('files')) {
               console.error('ERROR: Missing files capability');
-              console.error('capabilities:', oc.capabilities);
+              console.error('capabilities:', oc.contributes?.capabilities);
               process.exit(1);
             }
             console.log('✅ Extension manifest valid');
