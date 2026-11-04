@@ -1,5 +1,8 @@
 name: OpenChamber Release
 
+# NO NPM_TOKEN REQUIRED — OpenChamber distributes via Git URL or ZIP only
+# REQUIRED: GITHUB_TOKEN (automatically provided)
+
 on:
   release:
     types: [published]
@@ -87,7 +90,7 @@ jobs:
           echo "" >> RELEASE_NOTES.md
           echo "### Via OpenChamber Extension Manager (Recommended)" >> RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
-          echo "Settings → Extensions → Install from URL → \`https://github.com/<github-username>/vstack-openchamber.git\`" >> RELEASE_NOTES.md
+          echo "Settings → Extensions → Install from URL → \`https://github.com/vipintom/vstack-openchamber.git\`" >> RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
           echo "### Manual (ZIP)" >> RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
