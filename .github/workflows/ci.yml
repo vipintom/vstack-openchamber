@@ -68,7 +68,8 @@ jobs:
       - name: Validate extension manifest
         run: |
           node -e "
-            const pkg = require('./package.json');
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
             const oc = pkg.openchamber;
             if (!oc || oc.apiVersion !== 1) {
               console.error('ERROR: Invalid openchamber manifest');
