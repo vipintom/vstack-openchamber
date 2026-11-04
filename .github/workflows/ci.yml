@@ -69,6 +69,8 @@ jobs:
         run: |
           node -e "
             const fs = require('fs');
+            console.log('CWD:', process.cwd());
+            console.log('Files:', fs.readdirSync('.'));
             const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
             console.log('pkg.openchamber:', JSON.stringify(pkg.openchamber, null, 2));
             const oc = pkg.openchamber;
