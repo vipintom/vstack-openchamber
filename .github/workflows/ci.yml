@@ -70,6 +70,7 @@ jobs:
           node -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+            console.log('pkg.openchamber:', JSON.stringify(pkg.openchamber, null, 2));
             const oc = pkg.openchamber;
             if (!oc || oc.apiVersion !== 1) {
               console.error('ERROR: Invalid openchamber manifest');
@@ -81,6 +82,7 @@ jobs:
             }
             if (!oc.capabilities?.includes('files')) {
               console.error('ERROR: Missing files capability');
+              console.error('capabilities:', oc.capabilities);
               process.exit(1);
             }
             console.log('✅ Extension manifest valid');
