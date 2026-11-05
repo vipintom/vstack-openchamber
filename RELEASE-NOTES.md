@@ -61,14 +61,16 @@ Load `panel/` as an unpacked extension.
 
 ## Verification
 
-Run in Docker from the workspace root:
+The Docker harness lives in the workspace that holds all three vstack
+repositories and is not published with this package. From that workspace root:
 
 ```bash
 ./docker/test.sh panel
 ```
 
 The test suite covers all five health states, seven views, active and archived
-deliveries, evidence grouping and the read-only boundary.
+deliveries, evidence grouping and the read-only boundary. A standalone clone
+runs `pnpm test` for iteration only.
 
 ## Licence
 
