@@ -20,6 +20,7 @@ jobs:
   build-and-release:
     name: Build and Release
     runs-on: ubuntu-latest
+    container: node:24-bookworm
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,6 +53,9 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Install zip
+        run: apt-get update && apt-get install -y zip
 
       - name: Create distribution ZIP
         run: |

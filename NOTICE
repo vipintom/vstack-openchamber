@@ -1,0 +1,14 @@
+# NOTICE
+
+vstack-openchamber 0.2.0 is MIT licensed. It is original TypeScript written
+for this project.
+
+## Dependencies
+
+- `@openchamber/sdk` — the OpenChamber guest SDK used to read project files.
+  Build and test dependency; not bundled as source. See
+  https://github.com/openchamber.
+- The vstack recorder (`@vipintom/vstack-opencode`) writes the state this panel
+  reads. The recorder is MIT licensed.
+
+No source file from another project is copied into this repository.

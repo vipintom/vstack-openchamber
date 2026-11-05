@@ -1,46 +1,51 @@
 # vstack OpenChamber panel
 
-Read-only view of the vstack recorder. Seven views over `.vstack/`, no writes, no invented values.
+Version 0.2.0. Read-only view of the vstack recorder. Seven views over
+`.vstack/`, no writes, no invented values.
 
-The panel is optional. It requires the `vstack-opencode` recorder; it does not work from the Markdown pack alone.
+The panel is optional. It requires the `vstack-opencode` recorder; it does not
+work from the Markdown pack alone.
 
 ## Views
 
 | View | Shows |
 |---|---|
-| **Now** | Active delivery, phase, next task, blockers, last activity |
-| **Plan** | Tasks by status, each with its check and whether evidence exists |
-| **Evidence** | Claims and results, grouped by task; not-run is visible |
+| **Now** | Active delivery, phase, next task, next action, blockers, last activity |
+| **Plan** | Tasks grouped by status, each with its check, evidence state and a copyable recorder command |
+| **Evidence** | Claims and results grouped by task; a task with no evidence shows **not run**; unlinked evidence is separate |
 | **Timeline** | Every recorded event in order: route, task, evidence, decision, handoff, close |
-| **Decisions** | Choices, alternatives, reasons, consequences and waivers |
-| **Deliveries** | Every delivery recorded in this project, active and closed; select one to read its tasks, evidence, decisions and handoff |
-| **Health** | Missing files, stale state, incompatible version, broken history |
+| **Decisions** | Choices, alternatives, reasons, consequences, the review outcome and any waiver |
+| **Deliveries** | Every delivery recorded in this project, active, parked and closed; select one to read its tasks, evidence, decisions and handoff |
+| **Health** | Missing files, stale state, incompatible version, broken history, with a next command |
 
-Deliveries lists the active delivery and every closed record under `.vstack/deliveries/`. The same data powers the record detail, so a finished delivery stays readable after a new one opens.
+Deliveries lists the current delivery and every archived record under
+`.vstack/deliveries/`. A finished delivery stays readable after a new one opens.
+If `state.json` is broken, Deliveries still lists archived records.
 
 ## Honest states
 
-Five states, each with its own message and next action:
+Five states, each with its own message and next command:
 
 | State | Meaning |
 |---|---|
 | `missing` | No `.vstack/` in this project |
-| `stale` | History is newer than `state.json`; the recorder may have stopped mid-write |
+| `stale` | The last history revision and `state.json` disagree; the recorder may have stopped mid-write |
 | `incompatible` | State schema is newer than this panel reads |
 | `invalid` | A required record is malformed or broken |
 | `healthy` | State is present, current and readable |
 
-A task with no evidence renders as **not run**, never as done. A read error renders as an error, never as an empty project.
+A task with no evidence renders as **not run**, never as done. A read error
+renders as an error, never as an empty project.
 
 ## Read-only
 
-The panel has no write path and no network path. Every actionable row offers a copyable command. All values come from `.vstack/`; none are derived.
+The panel has no write path and no network path. Actionable rows offer a
+copyable command. All values come from `.vstack/`; none are derived.
 
 Files read:
 
-- `.vstack/state.json`
-- `.vstack/history.jsonl`
-- `.vstack/deliveries/*.json`
+- `.vstack/state.json` and `.vstack/history.jsonl` on every refresh
+- `.vstack/deliveries/*.json`, reloaded only when state or history changes
 - the Markdown record path named by a delivery
 
 ## Install
@@ -62,21 +67,42 @@ pnpm build
 
 Then load `panel/` as an unpacked extension.
 
+### Offline
+
+After one `pnpm install`, the clone builds and loads without network access.
+`panel/` contains the built bundle.
+
+### Windows
+
+Load the folder by absolute path with forward slashes, for example
+`C:/work/vstack-openchamber/panel`. The panel reads relative paths inside the
+open project; it uses no shell commands.
+
+## Uninstall
+
+1. Disable and remove **vstack Workflow** in OpenChamber → Settings →
+   Extensions.
+2. Delete the extension directory.
+3. Leave `.vstack/` in the project; the recorder owns it.
+
 ## Compatibility
 
-- OpenChamber: latest release at the time of vstack 0.2.0.
+- OpenChamber: >= 1.24.0 (`openchamber.engines.openchamber`).
 - Recorder: `@vipintom/vstack-opencode` 0.2.0.
-- State schema: 1.
+- State schema: 1. A newer schema produces an `incompatible` state and no
+  partial rendering.
 
 ## Development
 
+Every check runs in Docker from the workspace root:
+
 ```bash
-pnpm install
-pnpm typecheck
-pnpm test
-pnpm build
+./docker/test.sh panel
 ```
 
-## Licence
+## Release notes and licence
 
-MIT.
+- `RELEASE-NOTES.md` — scope, compatibility and the 0.1.0 migration.
+- MIT. See `LICENSE` and `NOTICE`.
+- Public repository, read-only: issues are welcome; pull requests are not
+  accepted in 0.2.0.

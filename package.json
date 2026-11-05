@@ -54,6 +54,8 @@
   },
   "files": [
     "panel",
-    "README.md"
+    "README.md",
+    "NOTICE",
+    "LICENSE"
   ]
 }
