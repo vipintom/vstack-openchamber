@@ -1,6 +1,6 @@
 # AGENTS.md — vstack-openchamber
 
-Version 0.2.0. The read-only OpenChamber panel over `.vstack/`. Seven views,
+Version 0.2.1. The read-only OpenChamber panel over `.vstack/`. Seven views,
 five honest states, no write path and no network path.
 
 ## Layout

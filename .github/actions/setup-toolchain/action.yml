@@ -1,0 +1,35 @@
+name: Setup toolchain
+description: Install pinned pnpm, Node.js (with pnpm cache) and Bun
+
+inputs:
+  node-version:
+    description: Pinned Node.js version
+    required: false
+    default: '20.19.0'
+  pnpm-version:
+    description: Pinned pnpm version (9.x line)
+    required: false
+    default: '9.15.4'
+  bun-version:
+    description: Pinned Bun version
+    required: false
+    default: '1.2.4'
+
+runs:
+  using: composite
+  steps:
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4.1.0
+      with:
+        version: ${{ inputs.pnpm-version }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4.4.0
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: pnpm
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2.0.3
+      with:
+        bun-version: ${{ inputs.bun-version }}

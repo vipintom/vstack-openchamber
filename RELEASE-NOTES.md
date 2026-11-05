@@ -1,7 +1,7 @@
-# vstack-openchamber 0.2.0 release notes
+# vstack-openchamber 0.2.1 release notes
 
 **Released:** 2026-11-05
-**Tag:** `v0.2.0`
+**Tag:** `v0.2.1`
 
 ## Scope
 
@@ -47,7 +47,7 @@ Load `panel/` as an unpacked extension.
 ## Compatibility
 
 - OpenChamber >= 1.24.0 (`openchamber.engines.openchamber`).
-- Recorder: `@vipintom/vstack-opencode` 0.2.0.
+- Recorder: `@vipintom/vstack-opencode` 0.2.1.
 - State schema: 1. A newer schema is refused, not partially rendered.
 - Pack: independent; the panel does not read the pack.
 
@@ -55,8 +55,8 @@ Load `panel/` as an unpacked extension.
 
 1. Disable and remove the 0.1.0 panel in OpenChamber -> Settings -> Extensions.
 2. Delete the old extension directory.
-3. Install 0.2.0 as above.
-4. Keep the project's `.vstack/` directory; the 0.2.0 recorder owns its format.
+3. Install 0.2.1 as above.
+4. Keep the project's `.vstack/` directory; the 0.2.1 recorder owns its format.
    0.1.0 panel state is not migrated.
 
 ## Verification

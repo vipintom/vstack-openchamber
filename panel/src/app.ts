@@ -26,9 +26,9 @@ function esc(value: unknown): string {
 }
 
 function tone(value: string): string {
-  if (["passed", "done", "healthy", "closed", "judgement"].includes(value)) return "success";
+  if (["passed", "done", "healthy", "closed"].includes(value)) return "success";
   if (["failed", "blocked", "invalid", "incompatible", "missing"].includes(value)) return "error";
-  if (["stale", "doing", "active", "parked"].includes(value)) return "warning";
+  if (["stale", "doing", "active", "parked", "judgement"].includes(value)) return "warning";
   return "neutral";
 }
 
@@ -228,10 +228,14 @@ export function mountApp(root: HTMLElement, options: AppOptions): { refresh: () 
           <div class="scroll"><table><thead><tr><th>ID</th><th>Task</th><th>Check</th><th>Evidence</th><th>Command</th></tr></thead><tbody>
           ${tasks
             .map((task) => {
-              const command = task.status === "done"
-                ? `vstack_task {"action":"complete","taskId":"${task.id}"}`
-                : `vstack_task {"action":"start","taskId":"${task.id}"}`;
-              return `<tr><td>${esc(task.id)}</td><td>${esc(task.title)}</td><td><code>${esc(task.check)}</code></td><td>${esc(taskEvidence(delivery, task))}</td><td class="command"><code>${esc(command)}</code>${copyButton(command)}</td></tr>`;
+              const commandCell =
+                task.status === "todo" || task.status === "blocked"
+                  ? (() => {
+                      const command = `vstack_task {"action":"start","taskId":"${task.id}"}`;
+                      return `<td class="command"><code>${esc(command)}</code>${copyButton(command)}</td>`;
+                    })()
+                  : `<td>—</td>`;
+              return `<tr><td>${esc(task.id)}</td><td>${esc(task.title)}</td><td><code>${esc(task.check)}</code></td><td>${esc(taskEvidence(delivery, task))}</td>${commandCell}</tr>`;
             })
             .join("")}
           </tbody></table></div>`;

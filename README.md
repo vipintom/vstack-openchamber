@@ -1,6 +1,6 @@
 # vstack OpenChamber panel
 
-Version 0.2.0. Read-only view of the vstack recorder. Seven views over
+Version 0.2.1. Read-only view of the vstack recorder. Seven views over
 `.vstack/`, no writes, no invented values.
 
 The panel is optional. It requires the `vstack-opencode` recorder; it does not
@@ -88,7 +88,7 @@ open project; it uses no shell commands.
 ## Compatibility
 
 - OpenChamber: >= 1.24.0 (`openchamber.engines.openchamber`).
-- Recorder: `@vipintom/vstack-opencode` 0.2.0.
+- Recorder: `@vipintom/vstack-opencode` 0.2.1.
 - State schema: 1. A newer schema produces an `incompatible` state and no
   partial rendering.
 
@@ -117,4 +117,4 @@ A host-run `pnpm test` is not accepted release verification.
 - `RELEASE-NOTES.md` — scope, compatibility and the 0.1.0 migration.
 - MIT. See `LICENSE` and `NOTICE`.
 - Public repository, read-only: issues are welcome; pull requests are not
-  accepted in 0.2.0.
+  accepted in 0.2.1.

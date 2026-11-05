@@ -1,4 +1,4 @@
-import type { Delivery, Health, HistoryEvent, State, Task } from "./types.ts";
+import type { Decision, Delivery, Evidence, Handoff, Health, HistoryEvent, State, Task } from "./types.ts";
 
 export const SUPPORTED_SCHEMA = 1;
 
@@ -18,12 +18,53 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
+function isTaskStatus(value: unknown): value is Task["status"] {
+  return value === "todo" || value === "doing" || value === "done" || value === "blocked";
+}
+
+function isEvidenceResult(value: unknown): value is Evidence["result"] {
+  return (
+    value === "passed" ||
+    value === "failed" ||
+    value === "blocked" ||
+    value === "not_verified" ||
+    value === "judgement"
+  );
+}
+
+function isEvidence(value: unknown): value is Evidence {
+  return (
+    isRecord(value) &&
+    isString(value.id) &&
+    isString(value.claim) &&
+    isString(value.check) &&
+    isEvidenceResult(value.result) &&
+    isString(value.createdAt)
+  );
+}
+
+function isDecision(value: unknown): value is Decision {
+  return (
+    isRecord(value) &&
+    isString(value.id) &&
+    isString(value.choice) &&
+    isString(value.alternatives) &&
+    isString(value.reason) &&
+    isString(value.consequence) &&
+    isString(value.owner)
+  );
+}
+
+function isHandoff(value: unknown): value is Handoff {
+  return isRecord(value) && isString(value.state) && isString(value.nextAction);
+}
+
 function isTask(value: unknown): value is Task {
   return (
     isRecord(value) &&
     isString(value.id) &&
     isString(value.title) &&
-    typeof value.status === "string" &&
+    isTaskStatus(value.status) &&
     isString(value.check) &&
     (value.evidenceId === null || typeof value.evidenceId === "string") &&
     (value.artifact === null || typeof value.artifact === "string") &&
@@ -43,13 +84,13 @@ export function parseDelivery(value: unknown): ParseResult<Delivery> {
   if (!Array.isArray(value.tasks) || !value.tasks.every(isTask)) {
     return { ok: false, kind: "invalid", message: "delivery.tasks is malformed" };
   }
-  if (!Array.isArray(value.evidence) || !value.evidence.every(isRecord)) {
+  if (!Array.isArray(value.evidence) || !value.evidence.every(isEvidence)) {
     return { ok: false, kind: "invalid", message: "delivery.evidence is malformed" };
   }
-  if (!Array.isArray(value.decisions) || !value.decisions.every(isRecord)) {
+  if (!Array.isArray(value.decisions) || !value.decisions.every(isDecision)) {
     return { ok: false, kind: "invalid", message: "delivery.decisions is malformed" };
   }
-  if (!Array.isArray(value.handoffs) || !value.handoffs.every(isRecord)) {
+  if (!Array.isArray(value.handoffs) || !value.handoffs.every(isHandoff)) {
     return { ok: false, kind: "invalid", message: "delivery.handoffs is malformed" };
   }
   if (!isString(value.createdAt) || !isString(value.updatedAt)) {
@@ -188,12 +229,16 @@ export function evaluateHealth(input: HealthInput): Health {
         detail: `The last event is revision ${last.revision}; state.json is revision ${input.state.revision}. The recorder may have stopped mid-write.`,
       };
     }
-  } else if (last && last.ts > input.state.updatedAt) {
-    return {
-      state: "stale",
-      title: "Stale",
-      detail: "The history is newer than state.json. The recorder may have stopped mid-write.",
-    };
+  } else if (last) {
+    const lastTime = Date.parse(last.ts);
+    const stateTime = Date.parse(input.state.updatedAt);
+    if (!Number.isNaN(lastTime) && !Number.isNaN(stateTime) && lastTime > stateTime) {
+      return {
+        state: "stale",
+        title: "Stale",
+        detail: "The history is newer than state.json. The recorder may have stopped mid-write.",
+      };
+    }
   }
   return { state: "healthy", title: "Healthy", detail: "State is present, current and readable." };
 }

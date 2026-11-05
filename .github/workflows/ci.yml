@@ -3,8 +3,24 @@ name: OpenChamber CI
 on:
   pull_request:
     branches: [master]
+    paths:
+      - 'panel/**'
+      - 'test/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'tsconfig.json'
+      - '.github/workflows/ci.yml'
+      - '.github/actions/setup-toolchain/**'
   push:
     branches: [master]
+    paths:
+      - 'panel/**'
+      - 'test/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'tsconfig.json'
+      - '.github/workflows/ci.yml'
+      - '.github/actions/setup-toolchain/**'
   workflow_dispatch:
   schedule:
     - cron: '0 3 * * 1'  # Weekly on Monday 3 AM UTC
@@ -16,29 +32,38 @@ jobs:
   validate:
     name: Validate Extension
     runs-on: ubuntu-latest
-    container: node:24-bookworm
+    container: node:20-bookworm
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: latest
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
+      - name: Setup toolchain (pinned pnpm 9.x, Node 20, Bun)
+        uses: ./.github/actions/setup-toolchain
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Workspace gates (7 views + read-only)
+        run: |
+          # Gate 1: exactly 7 views in panel/src/types.ts, including Deliveries
+          VIEW_COUNT=$(grep -c '{ id: "' panel/src/types.ts)
+          if [ "$VIEW_COUNT" -ne 7 ]; then
+            echo "ERROR: expected 7 views, found $VIEW_COUNT"
+            exit 1
+          fi
+          grep -q '{ id: "deliveries", label: "Deliveries" }' panel/src/types.ts || {
+            echo "ERROR: Deliveries view missing from panel/src/types.ts"
+            exit 1
+          }
+          echo "OK: 7 views including Deliveries"
+          # Gate 2: read-only — no write path, no network path.
+          # NOTE: 'unlink(' with paren so the legitimate 'unlinked'
+          # variable in panel/src/app.ts does not trip the gate.
+          if grep -rnE 'unlink\(|postMessage|writeFile|appendFile|mkdirSync|fetch\(|WebSocket|XMLHttpRequest' panel/src panel/main.ts; then
+            echo "ERROR: write/network API found — panel must stay read-only"
+            exit 1
+          fi
+          echo "OK: read-only gate clean"
 
       - name: Typecheck
         run: pnpm typecheck

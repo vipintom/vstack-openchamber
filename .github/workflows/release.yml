@@ -20,23 +20,19 @@ jobs:
   build-and-release:
     name: Build and Release
     runs-on: ubuntu-latest
-    container: node:24-bookworm
+    container: node:20-bookworm
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: latest
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
+      - name: Setup toolchain (pinned pnpm 9.x, Node 20, Bun)
+        uses: ./.github/actions/setup-toolchain
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -59,13 +55,14 @@ jobs:
 
       - name: Create distribution ZIP
         run: |
-          # Create explicit allowlist for ZIP
+          # Explicit allowlist: only the two HTML shells, the single
+          # built bundle (panel/main.js), plus metadata. No dashboard.js
+          # bundle exists — do not add one.
           ZIP_NAME="vstack-openchamber-${{ github.event.release.tag_name || inputs.version }}.zip"
           zip -r "$ZIP_NAME" \
             panel/index.html \
             panel/dashboard.html \
             panel/main.js \
-            panel/dashboard.js \
             package.json \
             README.md \
             LICENSE
@@ -74,12 +71,26 @@ jobs:
 
       - name: Verify ZIP contents
         run: |
-          unzip -l "vstack-openchamber-${{ github.event.release.tag_name || inputs.version }}.zip"
-          # Verify required files present
-          unzip -l "vstack-openchamber-${{ github.event.release.tag_name || inputs.version }}.zip" | grep -E "(panel/index\.html|panel/dashboard\.html|panel/main\.js|panel/dashboard\.js)" || {
-            echo "ERROR: Required files missing from ZIP"
+          ZIP_NAME="vstack-openchamber-${{ github.event.release.tag_name || inputs.version }}.zip"
+          unzip -l "$ZIP_NAME"
+          # Every allowlisted file must be present, no more no less
+          for f in panel/index.html panel/dashboard.html panel/main.js package.json README.md LICENSE; do
+            unzip -l "$ZIP_NAME" | grep -q "$f" || {
+              echo "ERROR: $f missing from ZIP"
+              exit 1
+            }
+          done
+          # Stale dashboard.js bundle must NOT ship
+          if unzip -l "$ZIP_NAME" | grep -q 'panel/dashboard\.js'; then
+            echo "ERROR: stale panel/dashboard.js found in ZIP"
             exit 1
-          }
+          fi
+          echo "✅ ZIP contents verified"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'vstack-openchamber-${{ github.event.release.tag_name || inputs.version }}.zip'
 
       - name: Attach ZIP to GitHub Release
         if: github.event_name == 'release'

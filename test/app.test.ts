@@ -208,12 +208,24 @@ describe("view content", () => {
     app.destroy();
   });
 
-  it("gives every plan row a copyable command", async () => {
-    const { root, app } = mount(async () => snapshot(), "plan");
+  it("offers start only for todo/blocked and no command for done", async () => {
+    const current = delivery("dlv_2", "Current work", "active", "2026-11-05T10:00:00.000Z");
+    current.tasks.push({
+      id: "tsk_2",
+      title: "follow up",
+      status: "todo",
+      check: "pnpm test",
+      evidenceId: null,
+      artifact: null,
+      createdAt: "2026-11-05T10:00:00.000Z",
+      updatedAt: "2026-11-05T10:00:00.000Z",
+    });
+    const { root, app } = mount(async () => snapshot({ stateText: stateText(current) }), "plan");
     await app.refresh();
 
     const commands = [...root.querySelectorAll<HTMLElement>("[data-copy]")].map((node) => node.dataset.copy);
-    expect(commands.some((command) => command?.includes("vstack_task"))).toBe(true);
+    expect(commands.some((command) => command?.includes('"action":"start"'))).toBe(true);
+    expect(commands.some((command) => command?.includes('"action":"complete"'))).toBe(false);
     app.destroy();
   });
 });
