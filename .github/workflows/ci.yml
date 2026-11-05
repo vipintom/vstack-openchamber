@@ -45,24 +45,21 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Test
+        run: pnpm test
+
       - name: Verify build output
         run: |
-          if [ ! -f "panel/main.js" ] || [ ! -f "panel/dashboard.js" ]; then
-            echo "ERROR: Built JS files not found"
+          if [ ! -f "panel/main.js" ]; then
+            echo "ERROR: Built JS file not found"
             exit 1
           fi
-
-          # Verify HTML references correct JS
-          if ! grep -q 'src="main.js"' panel/index.html; then
-            echo "ERROR: index.html does not reference main.js"
-            exit 1
-          fi
-
-          if ! grep -q 'src="dashboard.js"' panel/dashboard.html; then
-            echo "ERROR: dashboard.html does not reference dashboard.js"
-            exit 1
-          fi
-
+          for page in panel/index.html panel/dashboard.html; do
+            if ! grep -q 'src="main.js"' "$page"; then
+              echo "ERROR: $page does not reference main.js"
+              exit 1
+            fi
+          done
           echo "✅ Build output verified"
 
       - name: Validate extension manifest
@@ -94,7 +91,7 @@ jobs:
             echo "WARNING: Source maps found in panel (consider excluding)"
           fi
           # Verify build produced required JS files (source .ts files are expected to exist)
-          if [ ! -f "panel/main.js" ] || [ ! -f "panel/dashboard.js" ]; then
+          if [ ! -f "panel/main.js" ]; then
             echo "ERROR: Built JS files not found"
             exit 1
           fi

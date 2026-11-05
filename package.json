@@ -1,7 +1,7 @@
 {
   "name": "@vstack/openchamber",
-  "version": "0.1.0",
-  "description": "vstack OpenChamber Extension — workflow dashboard panel and page for visualizing vstack workflow state",
+  "version": "0.2.0",
+  "description": "vstack OpenChamber panel: seven read-only views over .vstack state, including deliveries",
   "type": "module",
   "openchamber": {
     "apiVersion": 1,
@@ -27,26 +27,32 @@
     }
   },
   "scripts": {
-    "build": "openchamber-guest-bundle panel/main.ts panel/main.js && openchamber-guest-bundle panel/dashboard.ts panel/dashboard.js",
+    "build": "openchamber-guest-bundle panel/main.ts panel/main.js",
     "dev": "openchamber-guest-bundle panel/main.ts panel/main.js --watch",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "pack": "npm pack --dry-run",
     "pack:prod": "npm pack"
   },
   "devDependencies": {
     "@openchamber/sdk": "2.5.3",
     "@types/bun": "1.4.4",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.0"
   },
   "engines": {
     "node": ">=20"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/<github-username>/vstack-openchamber.git"
+    "url": "https://github.com/vipintom/vstack-openchamber.git"
   },
-  "homepage": "https://github.com/<github-username>/vstack-openchamber#readme",
+  "homepage": "https://github.com/vipintom/vstack-openchamber#readme",
   "bugs": {
-    "url": "https://github.com/<github-username>/vstack-openchamber/issues"
-  }
+    "url": "https://github.com/vipintom/vstack-openchamber/issues"
+  },
+  "files": [
+    "panel",
+    "README.md"
+  ]
 }
