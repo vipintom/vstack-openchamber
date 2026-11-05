@@ -90,6 +90,13 @@ export interface Health {
   detail: string;
 }
 
+export interface Snapshot {
+  present: boolean;
+  stateText: string | null;
+  historyText: string | null;
+  archives: Array<{ name: string; text: string }>;
+}
+
 export type ViewId = "now" | "plan" | "evidence" | "timeline" | "decisions" | "deliveries" | "health";
 
 export const VIEWS: Array<{ id: ViewId; label: string }> = [

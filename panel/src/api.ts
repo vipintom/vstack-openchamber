@@ -1,4 +1,5 @@
 import { connectHost } from "@openchamber/sdk";
+import type { Snapshot } from "./types.ts";
 
 const host = connectHost();
 let projectDir: string | null = null;
@@ -60,13 +61,6 @@ export async function readDeliveryFiles(): Promise<Array<{ name: string; text: s
     if (/ENOENT|not found|no such file|does not exist/i.test(message)) return [];
     throw error;
   }
-}
-
-export interface Snapshot {
-  present: boolean;
-  stateText: string | null;
-  historyText: string | null;
-  archives: Array<{ name: string; text: string }>;
 }
 
 export async function readSnapshot(): Promise<Snapshot> {

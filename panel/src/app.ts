@@ -1,4 +1,3 @@
-import { readSnapshot } from "./api.ts";
 import {
   evaluateHealth,
   formatTime,
@@ -12,7 +11,7 @@ import {
   shortId,
   taskEvidence,
 } from "./model.ts";
-import type { Delivery, Health, HistoryEvent, State, ViewId } from "./types.ts";
+import type { Delivery, Health, HistoryEvent, Snapshot, State, ViewId } from "./types.ts";
 import { VIEWS } from "./types.ts";
 
 const REFRESH_MS = 3000;
@@ -133,9 +132,10 @@ function deliveryDetail(delivery: Delivery): string {
 
 export interface AppOptions {
   view?: ViewId;
+  read: () => Promise<Snapshot>;
 }
 
-export function mountApp(root: HTMLElement, options: AppOptions = {}): { refresh: () => Promise<void> } {
+export function mountApp(root: HTMLElement, options: AppOptions): { refresh: () => Promise<void>; destroy: () => void } {
   let view: ViewId = options.view ?? "now";
   let selectedId: string | null = null;
   let state: State | null = null;
@@ -378,7 +378,7 @@ export function mountApp(root: HTMLElement, options: AppOptions = {}): { refresh
 
   async function refresh(): Promise<void> {
     try {
-      const snapshot = await readSnapshot();
+      const snapshot = await options.read();
       const stateParsed = snapshot.stateText === null
         ? null
         : parseState(snapshot.stateText);
@@ -453,5 +453,10 @@ export function mountApp(root: HTMLElement, options: AppOptions = {}): { refresh
   }, REFRESH_MS);
   window.addEventListener("beforeunload", () => window.clearInterval(timer));
 
-  return { refresh };
+  return {
+    refresh,
+    destroy: () => {
+      window.clearInterval(timer);
+    },
+  };
 }
