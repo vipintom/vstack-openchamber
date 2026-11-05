@@ -1,6 +1,8 @@
-import type { Decision, Delivery, Evidence, Handoff, Health, HistoryEvent, State, Task } from "./types.ts";
+import type { Decision, Delivery, Evidence, Gate, Handoff, Health, HistoryEvent, State, Task } from "./types.ts";
 
-export const SUPPORTED_SCHEMA = 1;
+export const SUPPORTED_SCHEMA = 2;
+
+export const REQUIRES_V2 = "requires recorder 0.3.0 / schema 2";
 
 export type ParseResult<T> =
   | { ok: true; value: T }
@@ -32,6 +34,19 @@ function isEvidenceResult(value: unknown): value is Evidence["result"] {
   );
 }
 
+function isGateKind(value: unknown): value is Gate["kind"] {
+  return value === "command" || value === "artifact" || value === "review";
+}
+
+function isGate(value: unknown): value is Gate {
+  return (
+    isRecord(value) &&
+    isString(value.id) &&
+    isGateKind(value.kind) &&
+    isString(value.check)
+  );
+}
+
 function isEvidence(value: unknown): value is Evidence {
   return (
     isRecord(value) &&
@@ -39,7 +54,11 @@ function isEvidence(value: unknown): value is Evidence {
     isString(value.claim) &&
     isString(value.check) &&
     isEvidenceResult(value.result) &&
-    isString(value.createdAt)
+    isString(value.createdAt) &&
+    "gateId" in value &&
+    "digest" in value &&
+    (value.gateId === null || typeof value.gateId === "string") &&
+    (value.digest === null || typeof value.digest === "string")
   );
 }
 
@@ -68,6 +87,8 @@ function isTask(value: unknown): value is Task {
     isString(value.check) &&
     (value.evidenceId === null || typeof value.evidenceId === "string") &&
     (value.artifact === null || typeof value.artifact === "string") &&
+    "gateId" in value &&
+    (value.gateId === null || typeof value.gateId === "string") &&
     isString(value.createdAt) &&
     isString(value.updatedAt)
   );
@@ -83,6 +104,9 @@ export function parseDelivery(value: unknown): ParseResult<Delivery> {
   if (!isString(value.status)) return { ok: false, kind: "invalid", message: "delivery.status is missing" };
   if (!Array.isArray(value.tasks) || !value.tasks.every(isTask)) {
     return { ok: false, kind: "invalid", message: "delivery.tasks is malformed" };
+  }
+  if (!Array.isArray(value.gates) || !value.gates.every(isGate)) {
+    return { ok: false, kind: "invalid", message: `delivery.gates is malformed (${REQUIRES_V2})` };
   }
   if (!Array.isArray(value.evidence) || !value.evidence.every(isEvidence)) {
     return { ok: false, kind: "invalid", message: "delivery.evidence is malformed" };
@@ -118,10 +142,14 @@ export function parseState(text: string): ParseResult<State> {
       return {
         ok: false,
         kind: "incompatible",
-        message: `state schema ${parsed.schemaVersion} is newer than this panel reads (${SUPPORTED_SCHEMA})`,
+        message: `state schema ${parsed.schemaVersion} is newer than this panel reads (${SUPPORTED_SCHEMA}): ${REQUIRES_V2}`,
       };
     }
-    return { ok: false, kind: "invalid", message: `unknown state schema ${parsed.schemaVersion}` };
+    return {
+      ok: false,
+      kind: "invalid",
+      message: `state schema ${parsed.schemaVersion} is older than schema ${SUPPORTED_SCHEMA}: ${REQUIRES_V2} — re-record or migrate the delivery`,
+    };
   }
   if (typeof parsed.revision !== "number") {
     return { ok: false, kind: "invalid", message: "revision is missing" };
@@ -252,6 +280,34 @@ export function mergeDeliveries(state: State | null, archives: Delivery[]): Deli
     if (a.status === "active" && b.status !== "active") return -1;
     if (b.status === "active" && a.status !== "active") return 1;
     return b.updatedAt.localeCompare(a.updatedAt);
+  });
+}
+
+export function shortDigest(value: string | null | undefined): string {
+  if (!value) return "—";
+  return value.length > 8 ? value.slice(0, 8) : value;
+}
+
+export interface GateCoverage {
+  gateId: string;
+  kind: string;
+  evidenceCount: number;
+  passedCount: number;
+  status: "covered" | "uncovered";
+}
+
+/** Declared gates × recorded evidence. Covered = ≥1 passed evidence with gateId == gate.id. Read-only; no recompute. */
+export function gateCoverage(delivery: Delivery): GateCoverage[] {
+  return (delivery.gates ?? []).map((gate) => {
+    const linked = delivery.evidence.filter((item) => item.gateId === gate.id);
+    const passedCount = linked.filter((item) => item.result === "passed").length;
+    return {
+      gateId: gate.id,
+      kind: gate.kind,
+      evidenceCount: linked.length,
+      passedCount,
+      status: passedCount > 0 ? "covered" : "uncovered",
+    };
   });
 }
 

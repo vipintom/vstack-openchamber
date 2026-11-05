@@ -1,6 +1,6 @@
 # AGENTS.md — vstack-openchamber
 
-Version 0.2.1. The read-only OpenChamber panel over `.vstack/`. Seven views,
+Version 0.2.2. The read-only OpenChamber panel over `.vstack/`. Seven views,
 five honest states, no write path and no network path.
 
 ## Layout
@@ -19,6 +19,8 @@ five honest states, no write path and no network path.
 
 - Read-only. No write path, no network path, no shell command.
 - Seven views: Now, Plan, Evidence, Timeline, Decisions, Deliveries, Health.
+  Plan carries a gate-coverage block; Evidence shows gate and digest.
+- A schema 1 record is refused with a migrate message. Schema 2 is required.
 - Five states: `missing`, `stale`, `incompatible`, `invalid`, `healthy`.
 - A state schema newer than this panel reads is `incompatible` and renders
   nothing partial.

@@ -1,7 +1,14 @@
-# vstack-openchamber 0.2.1 release notes
+# vstack-openchamber 0.2.2 release notes
 
-**Released:** 2026-11-05
-**Tag:** `v0.2.1`
+**Released:** 2026-11-06
+**Tag:** `v0.2.2`
+
+## 0.2.2
+
+Schema 2 parsing with gate-kind validation, gate-coverage block in Plan,
+gate and digest-match columns in Evidence, refusal of schema 1 with a
+migrate message. Seven views and five states unchanged, read-only kept.
+35 tests green.
 
 ## Scope
 
@@ -47,7 +54,7 @@ Load `panel/` as an unpacked extension.
 ## Compatibility
 
 - OpenChamber >= 1.24.0 (`openchamber.engines.openchamber`).
-- Recorder: `@vipintom/vstack-opencode` 0.2.1.
+- Recorder: `@vipintom/vstack-opencode` 0.2.2.
 - State schema: 1. A newer schema is refused, not partially rendered.
 - Pack: independent; the panel does not read the pack.
 
@@ -55,8 +62,8 @@ Load `panel/` as an unpacked extension.
 
 1. Disable and remove the 0.1.0 panel in OpenChamber -> Settings -> Extensions.
 2. Delete the old extension directory.
-3. Install 0.2.1 as above.
-4. Keep the project's `.vstack/` directory; the 0.2.1 recorder owns its format.
+3. Install 0.2.2 as above.
+4. Keep the project's `.vstack/` directory; the 0.2.2 recorder owns its format.
    0.1.0 panel state is not migrated.
 
 ## Verification

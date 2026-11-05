@@ -9,6 +9,7 @@ export interface Task {
   check: string;
   evidenceId: string | null;
   artifact: string | null;
+  gateId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -20,9 +21,18 @@ export interface Evidence {
   result: "passed" | "failed" | "blocked" | "not_verified" | "judgement";
   artifact: string | null;
   taskId?: string | null;
+  gateId: string | null;
+  digest: string | null;
   createdAt: string;
 }
 
+export type GateKind = "command" | "artifact" | "review";
+
+export interface Gate {
+  id: string;
+  kind: GateKind;
+  check: string;
+}
 export interface Review {
   outcome: "approved" | "changes_requested";
   notes: string;
@@ -60,6 +70,7 @@ export interface Delivery {
   skills: string[];
   skipped: string[];
   tasks: Task[];
+  gates: Gate[];
   evidence: Evidence[];
   decisions: Decision[];
   handoffs: Handoff[];

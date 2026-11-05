@@ -1,6 +1,7 @@
 import {
   evaluateHealth,
   formatTime,
+  gateCoverage,
   lastHandoff,
   mergeDeliveries,
   nextTask,
@@ -8,6 +9,7 @@ import {
   parseHistory,
   parseState,
   progress,
+  shortDigest,
   shortId,
   taskEvidence,
 } from "./model.ts";
@@ -26,9 +28,9 @@ function esc(value: unknown): string {
 }
 
 function tone(value: string): string {
-  if (["passed", "done", "healthy", "closed"].includes(value)) return "success";
-  if (["failed", "blocked", "invalid", "incompatible", "missing"].includes(value)) return "error";
-  if (["stale", "doing", "active", "parked", "judgement"].includes(value)) return "warning";
+  if (["passed", "done", "healthy", "closed", "covered", "match"].includes(value)) return "success";
+  if (["failed", "blocked", "invalid", "incompatible", "missing", "mismatch"].includes(value)) return "error";
+  if (["stale", "doing", "active", "parked", "judgement", "uncovered"].includes(value)) return "warning";
   return "neutral";
 }
 
@@ -63,13 +65,27 @@ function deliveryDetail(delivery: Delivery): string {
     )
     .join("");
   const evidence = delivery.evidence
-    .map(
-      (item) => `<tr>
+    .map((item) => {
+      const digest = !item.digest
+        ? "—"
+        : `<code title="${esc(item.digest)}">${esc(item.digest.slice(0, 8))}</code> ${badge(item.result === "failed" ? "mismatch" : "match")}`;
+      return `<tr>
         <td>${esc(item.id)}</td>
         <td>${esc(item.claim)}</td>
         <td>${badge(item.result)}</td>
+        <td>${esc(item.gateId ?? "—")}</td>
+        <td>${digest}</td>
         <td><code>${esc(item.check)}</code></td>
         <td>${esc(item.artifact ?? "—")}</td>
+      </tr>`;
+    })
+    .join("");
+  const gates = (delivery.gates ?? [])
+    .map(
+      (gate) => `<tr>
+        <td>${esc(gate.id)}</td>
+        <td>${esc(gate.kind)}</td>
+        <td><code>${esc(gate.check)}</code></td>
       </tr>`
     )
     .join("");
@@ -108,10 +124,18 @@ function deliveryDetail(delivery: Delivery): string {
       }
     </section>
     <section class="card">
+      <h3>Gates</h3>
+      ${
+        gates
+          ? `<div class="scroll"><table><thead><tr><th>ID</th><th>Kind</th><th>Check</th></tr></thead><tbody>${gates}</tbody></table></div>`
+          : empty("No gates declared", "Gates are declared by the recorder.")
+      }
+    </section>
+    <section class="card">
       <h3>Evidence</h3>
       ${
         evidence
-          ? `<div class="scroll"><table><thead><tr><th>ID</th><th>Claim</th><th>Result</th><th>Check</th><th>Artifact</th></tr></thead><tbody>${evidence}</tbody></table></div>`
+          ? `<div class="scroll"><table><thead><tr><th>ID</th><th>Claim</th><th>Result</th><th>Gate</th><th>Digest</th><th>Check</th><th>Artifact</th></tr></thead><tbody>${evidence}</tbody></table></div>`
           : empty("No evidence recorded", "A task cannot complete without it.")
       }
     </section>
@@ -243,17 +267,39 @@ export function mountApp(root: HTMLElement, options: AppOptions): { refresh: () 
       .join("");
     return `<section class="card">
       <h2>Plan</h2>
+      ${gateCoverageBlock(delivery)}
       ${sections || empty("No tasks recorded", "Add one with vstack_task.")}
     </section>`;
   }
 
+  function evidenceDigestCell(item: Delivery["evidence"][number]): string {
+    // No file access from the panel: show the recorded digest only.
+    // Mismatch is shown when the recorded result failed, never recomputed.
+    if (!item.digest) return "—";
+    const mark = item.result === "failed" ? badge("mismatch") : badge("match");
+    return `<code title="${esc(item.digest)}">${esc(shortDigest(item.digest))}</code> ${mark}`;
+  }
+
   function evidenceRows(items: Delivery["evidence"]): string {
-    return `<div class="scroll"><table><thead><tr><th>ID</th><th>Claim</th><th>Result</th><th>Check</th><th>Artifact</th><th>Time</th></tr></thead><tbody>
+    return `<div class="scroll"><table><thead><tr><th>ID</th><th>Claim</th><th>Result</th><th>Gate</th><th>Digest</th><th>Check</th><th>Artifact</th><th>Time</th></tr></thead><tbody>
       ${items
         .map(
-          (item) => `<tr><td>${esc(item.id)}</td><td>${esc(item.claim)}</td><td>${badge(item.result)}</td><td><code>${esc(item.check)}</code></td><td>${esc(item.artifact ?? "—")}</td><td>${esc(formatTime(item.createdAt))}</td></tr>`
+          (item) => `<tr><td>${esc(item.id)}</td><td>${esc(item.claim)}</td><td>${badge(item.result)}</td><td>${esc(item.gateId ?? "—")}</td><td>${evidenceDigestCell(item)}</td><td><code>${esc(item.check)}</code></td><td>${esc(item.artifact ?? "—")}</td><td>${esc(formatTime(item.createdAt))}</td></tr>`
         )
         .join("")}
+      </tbody></table></div>`;
+  }
+
+  // View choice: gate coverage lives inside the Plan view header, not an 8th
+  // view. The seven-views contract (Now, Plan, Evidence, Timeline, Decisions,
+  // Deliveries, Health) stays unchanged.
+  function gateCoverageBlock(delivery: Delivery): string {
+    const rows = gateCoverage(delivery);
+    const covered = rows.filter((row) => row.status === "covered").length;
+    if (rows.length === 0) return `<p class="muted">No gates declared.</p>`;
+    return `<h3>Gate coverage (${covered}/${rows.length} covered)</h3>
+      <div class="scroll"><table><thead><tr><th>Gate</th><th>Kind</th><th>Evidence</th><th>Status</th></tr></thead><tbody>
+      ${rows.map((row) => `<tr><td>${esc(row.gateId)}</td><td>${esc(row.kind)}</td><td>${row.evidenceCount}</td><td>${badge(row.status)}</td></tr>`).join("")}
       </tbody></table></div>`;
   }
 

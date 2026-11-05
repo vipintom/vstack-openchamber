@@ -1,6 +1,6 @@
 # vstack OpenChamber panel
 
-Version 0.2.1. Read-only view of the vstack recorder. Seven views over
+Version 0.2.2. Read-only view of the vstack recorder. Seven views over
 `.vstack/`, no writes, no invented values.
 
 The panel is optional. It requires the `vstack-opencode` recorder; it does not
@@ -11,8 +11,8 @@ work from the Markdown pack alone.
 | View | Shows |
 |---|---|
 | **Now** | Active delivery, phase, next task, next action, blockers, last activity |
-| **Plan** | Tasks grouped by status, each with its check, evidence state and a copyable recorder command |
-| **Evidence** | Claims and results grouped by task; a task with no evidence shows **not run**; unlinked evidence is separate |
+| **Plan** | Tasks grouped by status, gate-coverage header (declared gates × linked evidence), each with its check, evidence state and a copyable recorder command |
+| **Evidence** | Claims and results grouped by task with gate and digest columns; a task with no evidence shows **not run**; unlinked evidence is separate |
 | **Timeline** | Every recorded event in order: route, task, evidence, decision, handoff, close |
 | **Decisions** | Choices, alternatives, reasons, consequences, the review outcome and any waiver |
 | **Deliveries** | Every delivery recorded in this project, active, parked and closed; select one to read its tasks, evidence, decisions and handoff |
@@ -88,9 +88,9 @@ open project; it uses no shell commands.
 ## Compatibility
 
 - OpenChamber: >= 1.24.0 (`openchamber.engines.openchamber`).
-- Recorder: `@vipintom/vstack-opencode` 0.2.1.
-- State schema: 1. A newer schema produces an `incompatible` state and no
-  partial rendering.
+- Recorder: `@vipintom/vstack-opencode` 0.2.2.
+- State schema: 2. A newer schema produces an `incompatible` state and no
+  partial rendering. Schema 1 is refused with a migrate message.
 
 ## Development
 
@@ -117,4 +117,4 @@ A host-run `pnpm test` is not accepted release verification.
 - `RELEASE-NOTES.md` — scope, compatibility and the 0.1.0 migration.
 - MIT. See `LICENSE` and `NOTICE`.
 - Public repository, read-only: issues are welcome; pull requests are not
-  accepted in 0.2.1.
+  accepted in 0.2.2.

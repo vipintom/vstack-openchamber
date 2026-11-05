@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it } from "vitest";
 import { mountApp } from "../panel/src/app.ts";
+import { REQUIRES_V2 } from "../panel/src/model.ts";
 import type { Delivery, Snapshot } from "../panel/src/types.ts";
 
 const delivery = (id: string, title: string, status: Delivery["status"], updatedAt: string): Delivery => ({
@@ -22,10 +23,12 @@ const delivery = (id: string, title: string, status: Delivery["status"], updated
       check: "pnpm test",
       evidenceId: "ev_1",
       artifact: null,
+      gateId: "gate_1",
       createdAt: updatedAt,
       updatedAt,
     },
   ],
+  gates: [{ id: "gate_1", kind: "command", check: "pnpm test" }],
   evidence: [
     {
       id: "ev_1",
@@ -33,6 +36,8 @@ const delivery = (id: string, title: string, status: Delivery["status"], updated
       check: "pnpm test",
       result: "passed",
       artifact: null,
+      gateId: "gate_1",
+      digest: "abcdef1234567890",
       createdAt: updatedAt,
     },
   ],
@@ -46,7 +51,7 @@ const delivery = (id: string, title: string, status: Delivery["status"], updated
 const snapshot = (overrides: Partial<Snapshot> = {}): Snapshot => ({
   present: true,
   stateText: JSON.stringify({
-    schemaVersion: 1,
+    schemaVersion: 2,
     revision: 4,
     createdAt: "2026-11-05T10:00:00.000Z",
     updatedAt: "2026-11-05T10:00:00.000Z",
@@ -71,7 +76,7 @@ function mount(read: () => Promise<Snapshot>, view: "now" | "plan" | "evidence" 
 
 const stateText = (value: Delivery | null, revision = 4): string =>
   JSON.stringify({
-    schemaVersion: 1,
+    schemaVersion: 2,
     revision,
     createdAt: "2026-11-05T10:00:00.000Z",
     updatedAt: "2026-11-05T10:00:00.000Z",
@@ -117,11 +122,24 @@ describe("deliveries view", () => {
   it("refuses to render a newer schema", async () => {
     const { root, app } = mount(async () => ({
       ...snapshot(),
-      stateText: JSON.stringify({ schemaVersion: 2, revision: 1, createdAt: "x", updatedAt: "x", delivery: null }),
+      stateText: JSON.stringify({ schemaVersion: 3, revision: 1, createdAt: "x", updatedAt: "x", delivery: null }),
     }));
     await app.refresh();
 
     expect(root.textContent).toContain("Incompatible");
+    expect(root.textContent).not.toContain("Current work");
+    app.destroy();
+  });
+
+  it("refuses schema 1 with the migrate message", async () => {
+    const { root, app } = mount(async () => ({
+      ...snapshot(),
+      stateText: JSON.stringify({ schemaVersion: 1, revision: 1, createdAt: "x", updatedAt: "x", delivery: null }),
+    }));
+    await app.refresh();
+
+    expect(root.textContent).toContain("Invalid");
+    expect(root.textContent).toContain(REQUIRES_V2);
     expect(root.textContent).not.toContain("Current work");
     app.destroy();
   });
@@ -166,6 +184,7 @@ describe("view content", () => {
       check: "pnpm test",
       evidenceId: null,
       artifact: null,
+      gateId: "gate_1",
       createdAt: "2026-11-05T10:00:00.000Z",
       updatedAt: "2026-11-05T10:00:00.000Z",
     });
@@ -175,6 +194,47 @@ describe("view content", () => {
     expect(root.textContent).toContain("reproduce");
     expect(root.textContent).toContain("follow up");
     expect(root.textContent).toContain("not run");
+    app.destroy();
+  });
+
+  it("shows gate, digest short and match in Evidence", async () => {
+    const { root, app } = mount(async () => snapshot(), "evidence");
+    await app.refresh();
+
+    expect(root.textContent).toContain("gate_1");
+    expect(root.textContent).toContain("abcdef12");
+    expect(root.textContent).toContain("match");
+    app.destroy();
+  });
+
+  it("shows mismatch for failed evidence", async () => {
+    const current = delivery("dlv_2", "Current work", "active", "2026-11-05T10:00:00.000Z");
+    current.evidence[0]!.result = "failed";
+    const { root, app } = mount(async () => snapshot({ stateText: stateText(current) }), "evidence");
+    await app.refresh();
+
+    expect(root.textContent).toContain("mismatch");
+    app.destroy();
+  });
+
+  it("shows the gate coverage block in Plan", async () => {
+    const { root, app } = mount(async () => snapshot(), "plan");
+    await app.refresh();
+
+    expect(root.textContent).toContain("Gate coverage");
+    expect(root.textContent).toContain("gate_1");
+    expect(root.textContent).toContain("covered");
+    app.destroy();
+  });
+
+  it("shows uncovered gates in the Plan coverage block", async () => {
+    const current = delivery("dlv_2", "Current work", "active", "2026-11-05T10:00:00.000Z");
+    current.gates.push({ id: "gate_2", kind: "artifact", check: "report.pdf exists" });
+    const { root, app } = mount(async () => snapshot({ stateText: stateText(current) }), "plan");
+    await app.refresh();
+
+    expect(root.textContent).toContain("gate_2");
+    expect(root.textContent).toContain("uncovered");
     app.destroy();
   });
 
@@ -217,6 +277,7 @@ describe("view content", () => {
       check: "pnpm test",
       evidenceId: null,
       artifact: null,
+      gateId: "gate_1",
       createdAt: "2026-11-05T10:00:00.000Z",
       updatedAt: "2026-11-05T10:00:00.000Z",
     });

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   evaluateHealth,
+  gateCoverage,
   mergeDeliveries,
   parseArchives,
   parseHistory,
   parseState,
+  REQUIRES_V2,
   taskEvidence,
 } from "../panel/src/model.ts";
 import type { Delivery } from "../panel/src/types.ts";
@@ -28,10 +30,12 @@ const delivery = (overrides: Partial<Delivery> = {}): Delivery => ({
       check: "pnpm test -- retry",
       evidenceId: "ev_1",
       artifact: null,
+      gateId: "gate_1",
       createdAt: "2026-11-05T10:00:00.000Z",
       updatedAt: "2026-11-05T10:00:00.000Z",
     },
   ],
+  gates: [{ id: "gate_1", kind: "command", check: "pnpm test -- retry" }],
   evidence: [
     {
       id: "ev_1",
@@ -39,6 +43,8 @@ const delivery = (overrides: Partial<Delivery> = {}): Delivery => ({
       check: "pnpm test -- retry",
       result: "passed",
       artifact: null,
+      gateId: "gate_1",
+      digest: "abcdef1234567890",
       createdAt: "2026-11-05T10:00:00.000Z",
     },
   ],
@@ -51,7 +57,7 @@ const delivery = (overrides: Partial<Delivery> = {}): Delivery => ({
 });
 
 const state = (overrides: Record<string, unknown> = {}) => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   revision: 3,
   createdAt: "2026-11-05T10:00:00.000Z",
   updatedAt: "2026-11-05T10:00:00.000Z",
@@ -71,21 +77,75 @@ const healthy = (overrides: Partial<Parameters<typeof evaluateHealth>[0]> = {}) 
   });
 
 describe("state parsing", () => {
-  it("accepts a valid state", () => {
+  it("accepts a valid v2 state", () => {
     const parsed = parseState(JSON.stringify(state()));
     expect(parsed.ok).toBe(true);
   });
 
   it("reports a newer schema as incompatible", () => {
-    const parsed = parseState(JSON.stringify(state({ schemaVersion: 2 })));
+    const parsed = parseState(JSON.stringify(state({ schemaVersion: 3 })));
     expect(parsed.ok).toBe(false);
-    if (!parsed.ok) expect(parsed.kind).toBe("incompatible");
+    if (!parsed.ok) {
+      expect(parsed.kind).toBe("incompatible");
+      expect(parsed.message).toContain(REQUIRES_V2);
+    }
+  });
+
+  it("refuses schema 1 as invalid with the migrate message", () => {
+    const parsed = parseState(JSON.stringify(state({ schemaVersion: 1 })));
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) {
+      expect(parsed.kind).toBe("invalid");
+      expect(parsed.message).toContain(REQUIRES_V2);
+    }
   });
 
   it("rejects malformed state", () => {
     const parsed = parseState("{not json");
     expect(parsed.ok).toBe(false);
     if (!parsed.ok) expect(parsed.kind).toBe("invalid");
+  });
+
+  it("rejects an unknown gate kind", () => {
+    const bad = delivery({ gates: [{ id: "g", kind: "shell", check: "x" }] as never });
+    const parsed = parseState(JSON.stringify(state({ delivery: bad })));
+    expect(parsed.ok).toBe(false);
+  });
+
+  it("refuses a v1 delivery without gates", () => {
+    const { gates: _dropped, ...v1 } = delivery() as unknown as Record<string, unknown>;
+    void _dropped;
+    const parsed = parseState(JSON.stringify(state({ delivery: v1 })));
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) expect(parsed.message).toContain(REQUIRES_V2);
+  });
+});
+
+describe("gate coverage", () => {
+  it("marks a gate covered when passed evidence links it", () => {
+    const rows = gateCoverage(delivery());
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ gateId: "gate_1", evidenceCount: 1, status: "covered" });
+  });
+
+  it("marks a gate uncovered with no passed evidence", () => {
+    const item = delivery({
+      gates: [
+        { id: "gate_1", kind: "command", check: "pnpm test" },
+        { id: "gate_2", kind: "artifact", check: "report.pdf exists" },
+      ],
+    });
+    const rows = gateCoverage(item);
+    expect(rows.find((row) => row.gateId === "gate_2")).toMatchObject({
+      evidenceCount: 0,
+      status: "uncovered",
+    });
+  });
+
+  it("failed evidence does not cover a gate", () => {
+    const item = delivery();
+    item.evidence[0]!.result = "failed";
+    expect(gateCoverage(item)[0]!.status).toBe("uncovered");
   });
 });
 
@@ -98,7 +158,7 @@ describe("health", () => {
     expect(
       healthy({
         state: null,
-        stateError: { ok: false, kind: "incompatible", message: "schema 2" },
+        stateError: { ok: false, kind: "incompatible", message: "schema 3" },
       }).state
     ).toBe("incompatible");
   });
