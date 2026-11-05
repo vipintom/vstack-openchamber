@@ -150,11 +150,11 @@ export function mountApp(root: HTMLElement, options: AppOptions): { refresh: () 
         <button id="refresh" class="secondary">Refresh</button>
       </div>
     </header>
-    <div id="health-banner" class="banner"></div>
+    <div id="health-banner" class="banner" aria-live="polite"></div>
     <nav class="tabs" role="tablist">${VIEWS.map(
-      (item) => `<button role="tab" data-view="${item.id}" aria-selected="false">${esc(item.label)}</button>`
+      (item) => `<button role="tab" id="tab-${item.id}" data-view="${item.id}" aria-controls="view" aria-selected="false">${esc(item.label)}</button>`
     ).join("")}</nav>
-    <main id="view"></main>
+    <main id="view" role="tabpanel"></main>
     <footer id="footer" class="muted"></footer>
   </div>`;
 
@@ -171,7 +171,9 @@ export function mountApp(root: HTMLElement, options: AppOptions): { refresh: () 
       const active = button.dataset.view === view;
       button.classList.toggle("active", active);
       button.setAttribute("aria-selected", String(active));
+      button.tabIndex = active ? 0 : -1;
     });
+    viewEl.setAttribute("aria-labelledby", `tab-${view}`);
     const revision = state ? `revision ${state.revision}` : "no state";
     footerEl.textContent = `${revision} · ${events.length} events · ${archiveDeliveries.length} archived deliveries`;
   }
@@ -195,6 +197,7 @@ export function mountApp(root: HTMLElement, options: AppOptions): { refresh: () 
           <dt>Playbook</dt><dd>${esc(delivery.playbook)}</dd>
           <dt>Done when</dt><dd>${esc(delivery.doneWhen)}</dd>
           <dt>Next task</dt><dd>${task ? `${esc(task.title)} <span class="muted">${esc(task.id)}</span>` : "none"}</dd>
+          <dt>Next action</dt><dd>${handoff?.nextAction ? esc(handoff.nextAction) : "none recorded"}</dd>
           <dt>Blockers</dt><dd>${handoff?.blockers.length ? esc(handoff.blockers.join(", ")) : "none recorded"}</dd>
           <dt>Last activity</dt><dd>${esc(formatTime(delivery.updatedAt))}</dd>
         </dl>
@@ -211,31 +214,65 @@ export function mountApp(root: HTMLElement, options: AppOptions): { refresh: () 
   function renderPlan(): string {
     const delivery = state?.delivery;
     if (!delivery) return empty("No plan recorded", "Open a delivery and add tasks.");
+    const groups: Array<{ status: "doing" | "todo" | "blocked" | "done"; label: string }> = [
+      { status: "doing", label: "Doing" },
+      { status: "todo", label: "Todo" },
+      { status: "blocked", label: "Blocked" },
+      { status: "done", label: "Done" },
+    ];
+    const sections = groups
+      .map((group) => {
+        const tasks = delivery.tasks.filter((task) => task.status === group.status);
+        if (tasks.length === 0) return "";
+        return `<h3>${group.label} (${tasks.length})</h3>
+          <div class="scroll"><table><thead><tr><th>ID</th><th>Task</th><th>Check</th><th>Evidence</th><th>Command</th></tr></thead><tbody>
+          ${tasks
+            .map((task) => {
+              const command = task.status === "done"
+                ? `vstack_task {"action":"complete","taskId":"${task.id}"}`
+                : `vstack_task {"action":"start","taskId":"${task.id}"}`;
+              return `<tr><td>${esc(task.id)}</td><td>${esc(task.title)}</td><td><code>${esc(task.check)}</code></td><td>${esc(taskEvidence(delivery, task))}</td><td class="command"><code>${esc(command)}</code>${copyButton(command)}</td></tr>`;
+            })
+            .join("")}
+          </tbody></table></div>`;
+      })
+      .join("");
     return `<section class="card">
       <h2>Plan</h2>
-      <div class="scroll"><table><thead><tr><th>ID</th><th>Task</th><th>Status</th><th>Check</th><th>Evidence</th></tr></thead><tbody>
-      ${delivery.tasks
+      ${sections || empty("No tasks recorded", "Add one with vstack_task.")}
+    </section>`;
+  }
+
+  function evidenceRows(items: Delivery["evidence"]): string {
+    return `<div class="scroll"><table><thead><tr><th>ID</th><th>Claim</th><th>Result</th><th>Check</th><th>Artifact</th><th>Time</th></tr></thead><tbody>
+      ${items
         .map(
-          (task) => `<tr><td>${esc(task.id)}</td><td>${esc(task.title)}</td><td>${badge(task.status)}</td><td><code>${esc(task.check)}</code></td><td>${esc(taskEvidence(delivery, task))}</td></tr>`
+          (item) => `<tr><td>${esc(item.id)}</td><td>${esc(item.claim)}</td><td>${badge(item.result)}</td><td><code>${esc(item.check)}</code></td><td>${esc(item.artifact ?? "—")}</td><td>${esc(formatTime(item.createdAt))}</td></tr>`
         )
         .join("")}
-      </tbody></table></div>
-      ${delivery.tasks.length === 0 ? empty("No tasks recorded", "Add one with vstack_task.") : ""}
-    </section>`;
+      </tbody></table></div>`;
   }
 
   function renderEvidence(): string {
     const delivery = state?.delivery;
     if (!delivery) return empty("No evidence recorded", "Open a delivery first.");
+    const linked = new Set<string>();
+    const groups = delivery.tasks
+      .map((task) => {
+        const items = delivery.evidence.filter((item) => {
+          const match = item.taskId === task.id || task.evidenceId === item.id;
+          if (match) linked.add(item.id);
+          return match;
+        });
+        return `<h3>${esc(task.title)} <span class="muted">${esc(task.id)}</span> ${badge(taskEvidence(delivery, task))}</h3>
+          ${items.length ? evidenceRows(items) : `<p class="callout tone-warning">not run — no evidence recorded for this task.</p>`}`;
+      })
+      .join("");
+    const unlinked = delivery.evidence.filter((item) => !linked.has(item.id));
     return `<section class="card">
       <h2>Evidence</h2>
-      <div class="scroll"><table><thead><tr><th>ID</th><th>Claim</th><th>Result</th><th>Check</th><th>Artifact</th><th>Time</th></tr></thead><tbody>
-      ${delivery.evidence
-        .map(
-          (item) => `<tr><td>${esc(item.id)}</td><td>${esc(item.claim)}</td><td>${badge(item.result)}</td><td><code>${esc(item.check)}</code></td><td>${esc(item.artifact ?? "—")}</td><td>${esc(formatTime(item.createdAt))}</td></tr>`
-        )
-        .join("")}
-      </tbody></table></div>
+      ${groups || empty("No tasks recorded", "Evidence is grouped by task; a task with no evidence shows not run.")}
+      ${unlinked.length ? `<h3>Unlinked evidence</h3>${evidenceRows(unlinked)}` : ""}
       ${delivery.evidence.length === 0 ? empty("No evidence recorded", "A task without evidence shows not run.") : ""}
     </section>`;
   }
@@ -258,7 +295,10 @@ export function mountApp(root: HTMLElement, options: AppOptions): { refresh: () 
   }
 
   function renderDecisions(): string {
-    const decisions = state?.delivery?.decisions ?? [];
+    const delivery = state?.delivery;
+    const decisions = delivery?.decisions ?? [];
+    const waiver = delivery?.close?.waiver;
+    const review = delivery?.close?.review;
     return `<section class="card">
       <h2>Decisions</h2>
       ${
@@ -272,6 +312,8 @@ export function mountApp(root: HTMLElement, options: AppOptions): { refresh: () 
               .join("")}</ul>`
           : empty("No decisions recorded", "Record one with vstack_decision.")
       }
+      ${review ? `<h3>Review</h3><p>${badge(review.outcome)} ${esc(review.notes || "no notes")} — ${esc(review.owner)}</p>` : ""}
+      ${waiver ? `<h3>Waiver</h3><p class="callout tone-warning">${esc(waiver.reason)} — accepted by ${esc(waiver.owner)}.</p>` : ""}
     </section>`;
   }
 
@@ -327,11 +369,11 @@ export function mountApp(root: HTMLElement, options: AppOptions): { refresh: () 
         health.state === "missing"
           ? `<p>Install and enable the recorder, then open a delivery.</p><p class="command"><code>vstack_route</code>${copyButton("vstack_route")}</p>`
           : health.state === "incompatible"
-            ? `<p>Update the panel to a version that reads schema ${state?.schemaVersion ?? "newer"}.</p>`
+            ? `<p>Update the panel to a version that reads schema ${state?.schemaVersion ?? "newer"}.</p><p class="command"><code>cat .vstack/state.json</code>${copyButton("cat .vstack/state.json")}</p>`
             : health.state === "invalid"
-              ? `<p class="callout tone-error">A required record is malformed. Fix or move the named file; the panel will not invent values.</p>`
+              ? `<p class="callout tone-error">A required record is malformed. Fix or move the named file; the panel will not invent values.</p><p class="command"><code>cat .vstack/state.json</code>${copyButton("cat .vstack/state.json")}</p>`
               : health.state === "stale"
-                ? `<p>Run a recorder command to rewrite state, or refresh after the current command finishes.</p>`
+                ? `<p>Run a recorder command to rewrite state, or refresh after the current command finishes.</p><p class="command"><code>cat .vstack/history.jsonl</code>${copyButton("cat .vstack/history.jsonl")}</p>`
                 : `<p>No action. Every value above comes from a recorded file.</p>`
       }
     </section>`;
@@ -346,7 +388,12 @@ export function mountApp(root: HTMLElement, options: AppOptions): { refresh: () 
       )}<p class="command"><code>vstack_route</code>${copyButton("vstack_route")}</p></section>`;
       return;
     }
-    if (health.state === "incompatible" || health.state === "invalid") {
+    if (health.state === "incompatible") {
+      viewEl.innerHTML = `<section class="card"><h2>${esc(health.title)}</h2><p class="callout tone-${tone(health.state)}">${esc(health.detail)}</p>
+        <p class="muted">Open Health for the file and schema details.</p></section>`;
+      return;
+    }
+    if (health.state === "invalid" && !(view === "deliveries" && archiveDeliveries.length > 0)) {
       viewEl.innerHTML = `<section class="card"><h2>${esc(health.title)}</h2><p class="callout tone-${tone(health.state)}">${esc(health.detail)}</p>
         <p class="muted">Open Health for the file and schema details.</p></section>`;
       return;
@@ -413,6 +460,21 @@ export function mountApp(root: HTMLElement, options: AppOptions): { refresh: () 
       renderView();
     }
   }
+
+  root.addEventListener("keydown", (event) => {
+    const target = event.target as HTMLElement;
+    const tab = target.closest<HTMLElement>("[data-view]");
+    if (!tab || (event.key !== "ArrowRight" && event.key !== "ArrowLeft")) return;
+    const index = VIEWS.findIndex((item) => item.id === tab.dataset.view);
+    const next = (index + (event.key === "ArrowRight" ? 1 : -1) + VIEWS.length) % VIEWS.length;
+    const button = root.querySelector<HTMLElement>(`[data-view="${VIEWS[next]!.id}"]`);
+    if (button) {
+      event.preventDefault();
+      view = VIEWS[next]!.id;
+      renderView();
+      button.focus();
+    }
+  });
 
   root.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;

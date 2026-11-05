@@ -119,6 +119,44 @@ describe("health", () => {
     ).toBe("stale");
   });
 
+  it("is healthy when the last event has the current revision", () => {
+    expect(
+      healthy({
+        events: [
+          {
+            ts: "2026-11-05T10:00:00.001Z",
+            type: "task.added",
+            deliveryId: "dlv_1",
+            data: {},
+            revision: 3,
+            seq: 0,
+            prevHash: null,
+            hash: "abc",
+          },
+        ],
+      }).state
+    ).toBe("healthy");
+  });
+
+  it("is stale when history is behind the state revision", () => {
+    expect(
+      healthy({
+        events: [
+          {
+            ts: "2026-11-05T10:00:00.001Z",
+            type: "task.added",
+            deliveryId: "dlv_1",
+            data: {},
+            revision: 2,
+            seq: 0,
+            prevHash: null,
+            hash: "abc",
+          },
+        ],
+      }).state
+    ).toBe("stale");
+  });
+
   it("is healthy when state and history agree", () => {
     expect(healthy().state).toBe("healthy");
   });
@@ -129,6 +167,14 @@ describe("deliveries view", () => {
     const closed = delivery({ id: "dlv_2", status: "closed", title: "Old work" });
     const merged = mergeDeliveries(state({ delivery: delivery() }) as never, [closed, delivery()]);
     expect(merged.map((item) => item.id)).toEqual(["dlv_1", "dlv_2"]);
+  });
+
+  it("prefers the current state over an older parked archive", () => {
+    const current = delivery({ title: "Resumed work", status: "active" });
+    const parked = delivery({ title: "Parked copy", status: "parked" });
+    const merged = mergeDeliveries(state({ delivery: current }) as never, [parked]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]!.title).toBe("Resumed work");
   });
 
   it("shows a task without evidence as not run", () => {

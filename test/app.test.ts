@@ -43,7 +43,7 @@ const delivery = (id: string, title: string, status: Delivery["status"], updated
   closedAt: status === "closed" ? updatedAt : null,
 });
 
-const snapshot = (): Snapshot => ({
+const snapshot = (overrides: Partial<Snapshot> = {}): Snapshot => ({
   present: true,
   stateText: JSON.stringify({
     schemaVersion: 1,
@@ -59,14 +59,24 @@ const snapshot = (): Snapshot => ({
       text: JSON.stringify(delivery("dlv_1", "Old work", "closed", "2026-11-04T10:00:00.000Z")),
     },
   ],
+  ...overrides,
 });
 
-function mount(read: () => Promise<Snapshot>) {
+function mount(read: () => Promise<Snapshot>, view: "now" | "plan" | "evidence" | "timeline" | "decisions" | "deliveries" | "health" = "deliveries") {
   const root = document.createElement("div");
   document.body.append(root);
-  const app = mountApp(root, { read, view: "deliveries" });
+  const app = mountApp(root, { read, view });
   return { root, app };
 }
+
+const stateText = (value: Delivery | null, revision = 4): string =>
+  JSON.stringify({
+    schemaVersion: 1,
+    revision,
+    createdAt: "2026-11-05T10:00:00.000Z",
+    updatedAt: "2026-11-05T10:00:00.000Z",
+    delivery: value,
+  });
 
 afterEach(() => {
   document.body.innerHTML = "";
@@ -113,6 +123,97 @@ describe("deliveries view", () => {
 
     expect(root.textContent).toContain("Incompatible");
     expect(root.textContent).not.toContain("Current work");
+    app.destroy();
+  });
+
+  it("still lists archived deliveries when state.json is broken", async () => {
+    const { root, app } = mount(async () => snapshot({ stateText: "{not json" }));
+    await app.refresh();
+
+    expect(root.textContent).toContain("Old work");
+    expect(root.textContent).toContain("Invalid");
+    app.destroy();
+  });
+});
+
+describe("view content", () => {
+  it("shows the handoff next action in Now", async () => {
+    const current = delivery("dlv_2", "Current work", "active", "2026-11-05T10:00:00.000Z");
+    current.handoffs = [
+      {
+        id: "hnd_1",
+        state: "half done",
+        nextAction: "run the repro",
+        blockers: ["staging down"],
+        treeStatus: "dirty",
+        createdAt: "2026-11-05T10:00:00.000Z",
+      },
+    ];
+    const { root, app } = mount(async () => snapshot({ stateText: stateText(current) }), "now");
+    await app.refresh();
+
+    expect(root.textContent).toContain("Next action");
+    expect(root.textContent).toContain("run the repro");
+    app.destroy();
+  });
+
+  it("groups evidence by task and shows a task with no evidence as not run", async () => {
+    const current = delivery("dlv_2", "Current work", "active", "2026-11-05T10:00:00.000Z");
+    current.tasks.push({
+      id: "tsk_2",
+      title: "follow up",
+      status: "todo",
+      check: "pnpm test",
+      evidenceId: null,
+      artifact: null,
+      createdAt: "2026-11-05T10:00:00.000Z",
+      updatedAt: "2026-11-05T10:00:00.000Z",
+    });
+    const { root, app } = mount(async () => snapshot({ stateText: stateText(current) }), "evidence");
+    await app.refresh();
+
+    expect(root.textContent).toContain("reproduce");
+    expect(root.textContent).toContain("follow up");
+    expect(root.textContent).toContain("not run");
+    app.destroy();
+  });
+
+  it("shows the close waiver in Decisions", async () => {
+    const current = delivery("dlv_2", "Current work", "closed", "2026-11-05T10:00:00.000Z");
+    current.close = {
+      recordPath: ".vstack/deliveries/dlv_2.md",
+      summary: "done",
+      waiver: { reason: "vendor image unavailable", owner: "owner" },
+      closedAt: "2026-11-05T10:00:00.000Z",
+    };
+    const { root, app } = mount(async () => snapshot({ stateText: stateText(current) }), "decisions");
+    await app.refresh();
+
+    expect(root.textContent).toContain("vendor image unavailable");
+    expect(root.textContent).toContain("Waiver");
+    app.destroy();
+  });
+
+  it("renders fifty archived deliveries under 300 ms", async () => {
+    const archives = Array.from({ length: 50 }, (_, index) => {
+      const item = delivery(`dlv_${index}`, `Archived ${index}`, "closed", `2026-11-0${(index % 5) + 1}T10:00:00.000Z`);
+      return { name: `dlv_${index}.json`, text: JSON.stringify(item) };
+    });
+    const { root, app } = mount(async () => snapshot({ stateText: stateText(null), archives, historyText: "" }));
+    const started = performance.now();
+    await app.refresh();
+    const elapsed = performance.now() - started;
+    expect(root.querySelectorAll("[data-delivery]")).toHaveLength(50);
+    expect(elapsed).toBeLessThan(300);
+    app.destroy();
+  });
+
+  it("gives every plan row a copyable command", async () => {
+    const { root, app } = mount(async () => snapshot(), "plan");
+    await app.refresh();
+
+    const commands = [...root.querySelectorAll<HTMLElement>("[data-copy]")].map((node) => node.dataset.copy);
+    expect(commands.some((command) => command?.includes("vstack_task"))).toBe(true);
     app.destroy();
   });
 });

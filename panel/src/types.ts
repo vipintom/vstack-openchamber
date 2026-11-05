@@ -19,7 +19,14 @@ export interface Evidence {
   check: string;
   result: "passed" | "failed" | "blocked" | "not_verified" | "judgement";
   artifact: string | null;
+  taskId?: string | null;
   createdAt: string;
+}
+
+export interface Review {
+  outcome: "approved" | "changes_requested";
+  notes: string;
+  owner: string;
 }
 
 export interface Decision {
@@ -62,6 +69,7 @@ export interface Delivery {
   close?: {
     recordPath: string;
     summary: string;
+    review?: Review | null;
     waiver: { reason: string; owner: string } | null;
     closedAt: string;
   } | null;
@@ -80,6 +88,10 @@ export interface HistoryEvent {
   type: string;
   deliveryId: string;
   data: Record<string, unknown>;
+  revision?: number;
+  seq?: number;
+  prevHash?: string | null;
+  hash?: string;
 }
 
 export type HealthState = "missing" | "stale" | "incompatible" | "invalid" | "healthy";

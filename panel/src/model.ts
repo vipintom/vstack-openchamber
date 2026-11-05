@@ -180,7 +180,15 @@ export function evaluateHealth(input: HealthInput): Health {
     return { state: "invalid", title: "Invalid", detail: input.archiveErrors.join("; ") };
   }
   const last = input.events.at(-1);
-  if (last && last.ts > input.state.updatedAt) {
+  if (last && typeof last.revision === "number") {
+    if (last.revision !== input.state.revision) {
+      return {
+        state: "stale",
+        title: "Stale",
+        detail: `The last event is revision ${last.revision}; state.json is revision ${input.state.revision}. The recorder may have stopped mid-write.`,
+      };
+    }
+  } else if (last && last.ts > input.state.updatedAt) {
     return {
       state: "stale",
       title: "Stale",
@@ -194,7 +202,7 @@ export function mergeDeliveries(state: State | null, archives: Delivery[]): Deli
   const byId = new Map<string, Delivery>();
   for (const delivery of archives) byId.set(delivery.id, delivery);
   const active = state?.delivery;
-  if (active && !byId.has(active.id)) byId.set(active.id, active);
+  if (active) byId.set(active.id, active);
   return [...byId.values()].sort((a, b) => {
     if (a.status === "active" && b.status !== "active") return -1;
     if (b.status === "active" && a.status !== "active") return 1;
