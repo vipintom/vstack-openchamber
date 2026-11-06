@@ -1,5 +1,5 @@
 {
-  "name": "@vstack/openchamber",
+  "name": "@vipintom/vstack-openchamber",
   "version": "0.2.2",
   "description": "vstack OpenChamber panel: seven read-only views over .vstack state, including deliveries",
   "type": "module",
