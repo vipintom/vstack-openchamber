@@ -1,5 +1,7 @@
 # vstack OpenChamber panel
 
+[![CI](https://github.com/vipintom/vstack-openchamber/actions/workflows/ci.yml/badge.svg)](https://github.com/vipintom/vstack-openchamber/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Version 0.2.2. Read-only view of the vstack recorder. Seven views over
 `.vstack/`, no writes, no invented values.
 
@@ -50,6 +52,9 @@ Files read:
 
 ## Install
 
+> **Requires** OpenChamber >= 1.24.0 and recorder
+> `@vipintom/vstack-opencode` 0.2.2 writing state schema 2.
+
 ### Extension manager
 
 1. Open OpenChamber → Settings → Extensions.
@@ -85,10 +90,34 @@ open project; it uses no shell commands.
 2. Delete the extension directory.
 3. Leave `.vstack/` in the project; the recorder owns it.
 
+## Updating
+
+```bash
+cd vstack-openchamber
+git pull
+pnpm install
+pnpm build
+```
+
+Reload the extension in OpenChamber → Settings → Extensions.
+
+## Troubleshooting
+
+1. Panel shows `incompatible`? The record uses a newer schema than this
+   panel reads. Upgrade the panel; it never renders partial state.
+2. Panel shows `invalid`? A required record is malformed. Have the recorder
+   re-open the delivery; archived records stay browsable meanwhile.
+3. Panel shows `stale`? History moved without state (or the reverse); run the
+   recorder once more so both advance together.
+4. A task shows **not run**? It has no linked evidence. That is the honest
+   state, not an error — record evidence with the recorder.
+5. Views are empty after update? Rebuild (`pnpm build`); `panel/` holds the
+   built bundle the extension loads.
+
 ## Compatibility
 
 - OpenChamber: >= 1.24.0 (`openchamber.engines.openchamber`).
-- Recorder: `@vipintom/vstack-opencode` 0.2.2.
+- Recorder: [`@vipintom/vstack-opencode`](https://github.com/vipintom/vstack-opencode) 0.2.2.
 - State schema: 2. A newer schema produces an `incompatible` state and no
   partial rendering. Schema 1 is refused with a migrate message.
 
@@ -115,6 +144,7 @@ A host-run `pnpm test` is not accepted release verification.
 ## Release notes and licence
 
 - `RELEASE-NOTES.md` — scope, compatibility and the 0.1.0 migration.
-- MIT. See `LICENSE` and `NOTICE`.
+- MIT. See `LICENSE` and `NOTICE`. Not built by the OpenChamber team and not
+  affiliated with OpenChamber.
 - Public repository, read-only: issues are welcome; pull requests are not
   accepted in 0.2.2.
