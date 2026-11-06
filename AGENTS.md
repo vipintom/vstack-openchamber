@@ -48,6 +48,19 @@ repositories. The harness is not part of this repository:
 
 A host-run `pnpm test` is not accepted release verification.
 
+## Install and publish
+
+Published as `@vipintom/vstack-openchamber` (renamed from `@vstack/openchamber`;
+no `@vstack/*` name is published). Two install paths:
+
+- OpenChamber → Settings → Extensions → install from
+  `https://github.com/vipintom/vstack-openchamber.git` (recommended).
+- Release ZIP: download from the GitHub release, then Load Unpacked.
+
+The release workflow builds the ZIP and publishes it with provenance.
+Recorder counterpart: `@vipintom/vstack-opencode` writes schema 2, which
+this panel requires.
+
 ## Documents
 
 - `README.md` — views, states, install and compatibility.
