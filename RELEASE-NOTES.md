@@ -55,7 +55,7 @@ Load `panel/` as an unpacked extension.
 
 - OpenChamber >= 1.24.0 (`openchamber.engines.openchamber`).
 - Recorder: `@vipintom/vstack-opencode` 0.2.2.
-- State schema: 1. A newer schema is refused, not partially rendered.
+- State schema: 2. A newer schema is refused, not partially rendered.
 - Pack: independent; the panel does not read the pack.
 
 ## Upgrade from 0.1.0
